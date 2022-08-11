@@ -1,11 +1,14 @@
 name: Build an image with the signature
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
 
 jobs:
   build:
+    permissions:
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,7 +25,8 @@ jobs:
           username: seccamp-2022-web
           password: ${{ github.token }}
 
-      # TODO: add cosign-installer etc.
+      - name: install cosign
+        uses: sigstore/cosign-installer@main
 
       - name: Prepare Dockerfile
         run: |
@@ -38,3 +42,13 @@ jobs:
             ghcr.io/seccamp-2022-web/test-image-sasakiy84:latest
           platforms: linux/amd64
           push: true
+
+      - name: sign the container image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: cosign sign --force ghcr.io/${{ github.repository }}@${{ steps.push-step.outputs.digest }}
+      
+      - name: Verify the container image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: cosign verify ghcr.io/${{ github.repository }}@${{ steps.push-step.outputs.digest }}
